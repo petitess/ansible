@@ -1,0 +1,11 @@
+[vm-linux]
+20.160.2.1  
+
+[other-servers]
+1.1.1.1
+2.2.2.2
+
+[all:vars]
+ansible_connection=ssh
+ansible_user=azadmin
+ansible_ssh_pass=12345678.abc

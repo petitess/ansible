@@ -1,0 +1,11 @@
+---
+- name: install nginx
+  apt:
+    name: nginx
+    state: latest
+    update_cache: yes
+
+- name: index.html copy
+  template: src=index.html dest=/var/www/html/index.html
+  notify:
+    - Restart Nginx

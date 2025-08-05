@@ -1,0 +1,148 @@
+---
+- hosts: vm-linux
+  name: Run different tasks with variables and conditions
+  remote_user: azadmin
+  become: yes
+  vars:
+    my_dir: /tmp/mydir123
+    is_enabled: false
+    fruits:
+      - apple
+      - banana
+      - cherry
+    fruit_prices:
+      apple: 1.2
+      banana: 0.5
+      cherry: 2.0
+    fruit_basket:
+      - name: John
+        fruits:
+          - apple
+          - orange
+      - name: Jane
+        fruits:
+          - banana
+          - apple
+          - orange
+    os: linux
+    create_dir: true
+
+  vars_files:
+    - my-vars.yml
+  environment:
+    EXAMPLE: "foo bar"
+    
+  tasks:
+    - name: Ensure a directory exists
+      register: dir_check
+      when: 
+        - create_dir
+        - ansible_facts['os_family'] == 'Debian'
+      ignore_errors: true
+      ansible.builtin.file:
+        path: my_dir
+        state: directory
+
+    - name: is_enabled
+      when: is_enabled
+      debug:
+        msg: "is_enabled is set to {{ is_enabled }}"
+      any_errors_fatal: true
+      failed_when:
+        - dir_check.failed == true
+        - ansible_facts['os_family'] != 'Debian'
+
+    - name: Print fruits
+      debug:
+        msg: "Fruits list: {{ fruits }}"
+
+    - name: Print fruits with loop
+      debug:
+        msg: "Fruit: {{ item }}"
+      loop: "{{ fruits }}"
+      register: fruit_loop
+      changed_when: fruit_loop.rc == 0
+
+    - name: Print fruits with loop using with_items
+      debug:
+        msg: "Fruit: {{ item }}"
+      with_items: "{{ fruits }}"
+
+    - name: Print fruit prices
+      debug:
+        msg: "Fruit: {{ item.key }}, Price: {{ item.value }}"
+      loop: "{{ fruit_prices | dict2items }}"
+
+    - name: Print fruit price
+      debug:
+        msg: "Apple price: {{ fruit_prices.apple }}"
+
+    - name: Get the value of apple from the nested variable
+      debug:
+        var: fruit_prices[fruit_basket[0].fruits[0]]
+
+    - name: Using Jinja 2 filters on variables
+      debug:
+        var: fruit_prices.keys() | list | map('upper') | list
+
+    - name: Get the value of variable from my-vars.yml
+      debug:
+        var: vars_from_my_vars_yml
+
+    - name: Get the value from run time
+      debug:
+        var: version
+
+    - name: Print the value of variable when var file is passed at run time
+      debug:
+        var: other_variable
+
+    - name: Environment var at Playbook Level
+      environment:
+        EXAMPLE: "foo bar"
+      ansible.builtin.command: "echo $EXAMPLE"
+
+    - name: Read hosts file
+      ansible.builtin.command: "cat /etc/hosts"
+      register: hosts_output
+      when: true
+
+    - name: Print hosts output
+      debug:
+        var: hosts_output.stdout
+      when: hosts_output.stdout is defined and hosts_output.stdout.find('127.0.0.1') != -1
+
+    - name: Run with items greater than 5
+      ansible.builtin.command: "echo {{ item }}"
+      loop: "{{ range(1, 5) | list }}"
+      when: item > 3
+
+    - name: Ansible facts
+      ansible.builtin.debug:
+        var: ansible_facts
+      when: false
+
+- name: Example Ansible playbook for Handlers
+  hosts: vm-linux
+  become: yes
+  remote_user: azadmin
+  roles: 
+    - handlers
+    - install-apache
+    - custom-role
+
+  handlers:
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+
+  tasks:
+    - name: run script
+      ansible.builtin.shell: |
+         echo "Hostname: ${HOSTNAME}"
+      register: script_output
+
+    - name: print script output
+      debug:
+        var: script_output.stdout
